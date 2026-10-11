@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Miner Carfax — Bitaxe Health Report</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #1a1d24;
+    --card-border: #2a2e38;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --accent: #3b82f6;
+    --good: #22c55e;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 24px 16px 60px;
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 32px; }
+  header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+  header p { color: var(--muted); margin-top: 6px; font-size: 15px; }
+  .report-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .miner-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+  .miner-name { font-size: 20px; font-weight: 600; }
+  .miner-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .status-badge { background: #1e3a2f; color: var(--good); padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .stat { background: #12141a; border-radius: 12px; padding: 12px; text-align: center; }
+  .stat-value { font-size: 18px; font-weight: 700; }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .section-title { font-size: 16px; font-weight: 600; margin-bottom: 14px; }
+  .section-note { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .part { display: flex; align-items: flex-start; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--card-border); }
+  .part:last-child { border-bottom: none; }
+  .part-icon { width: 40px; height: 40px; border-radius: 10px; background: #12141a; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .part-info { flex: 1; }
+  .part-name { font-weight: 600; font-size: 15px; }
+  .part-detail { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin-top: 6px; }
+  .tag-diy { background: #1e3a2f; color: var(--good); }
+  .tag-warranty { background: #1e2a3a; color: var(--accent); }
+  .tag-warn { background: #2a2218; color: var(--warn); }
+  .life-bar { width: 100px; height: 8px; background: #2a2e38; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .life-fill { height: 100%; border-radius: 4px; }
+  .life-pct { font-size: 13px; font-weight: 600; min-width: 48px; text-align: right; }
+  .alert { background: #2a2218; border-left: 3px solid var(--warn); padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-top: 16px; }
+  .alert strong { color: var(--warn); }
+  .warning-box { background: #2a1a1a; border-left: 3px solid var(--bad); padding: 14px 16px; border-radius: 8px; font-size: 14px; margin-top: 12px; }
+  .warning-box strong { color: var(--bad); }
+  .oc-note { background: #1a1f2e; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--muted); margin-top: 16px; }
+  .oc-note span { color: var(--accent); font-weight: 600; }
+  .info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2a2e38;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 6px;
+    cursor: pointer;
+    border: none;
+    vertical-align: middle;
+  }
+  .info-btn:hover { background: var(--accent); color: white; }
+  .explainer {
+    display: none;
+    background: #12141a;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.45;
+  }
+  .explainer.show { display: block; }
+  @media (max-width: 520px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .life-bar { width: 70px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Hash Check</h1>
+    <p>Health report for your Bitaxe — every replaceable part</p>
+  </header>
+
+  <div class="report-card">
+    <div class="miner-header">
+      <div>
+        <div class="miner-name">Bitaxe Gamma 601</div>
+        <div class="miner-sub">Purchased Dec 2024 • Arrived Jan 14, 2025 • ~21 months old</div>
+      </div>
+      <div class="status-badge">Online</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-value">1.08 TH/s</div><div class="stat-label">Hashrate</div></div>
+      <div class="stat"><div class="stat-value">20.4 W</div><div class="stat-label">Power</div></div>
+      <div class="stat"><div class="stat-value">60 °C</div><div class="stat-label">ASIC Temp</div></div>
+    </div>
+    <div class="stats-grid" style="margin-top:12px;">
+      <div class="stat">
+        <div class="stat-value">42.4% <button class="info-btn" onclick="toggleExplainer('fan-explain')">?</button></div>
+        <div class="stat-label">Fan Speed</div>
+        <div id="fan-explain" class="explainer">
+          This is how hard the fan is working (0% = off/lowest, 100% = full speed). Your Bitaxe automatically raises it when the chip gets hotter. 42% while holding 60 °C is healthy and efficient — the fan isn’t being pushed hard right now.
+        </div>
+      </div>
+      <div class="stat"><div class="stat-value">525 MHz</div><div class="stat-label">Frequency</div></div>
+      <div class="stat"><div class="stat-value">1.18 V</div><div class="stat-label">ASIC Voltage</div></div>
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="section-title">Pool status <button class="info-btn" onclick="toggleExplainer('pool-explain')">?</button></div>
+    <div id="pool-explain" class="explainer">
+      Most home miners connect to a Bitcoin pool instead of pure solo mining. The pool tracks the shares your machine submits. Hash Check shows whether your hardware looks healthy enough to keep submitting shares.
+    </div>
+    <div class="section-note">Mining on Noderunners pool • Address: bc1qkglwnr7g0s570y527yc3ex4736hdl035gs6nhj</div>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-value">1.08–1.12 TH/s</div><div class="stat-label">Pool hashrate</div></div>
+      <div class="stat"><div class="stat-value">Active</div><div class="stat-label">Share status</div></div>
+      <div class="stat"><div class="stat-value">Online</div><div class="stat-label">Pool connection</div></div>
+    </div>
+    <div class="alert" style="margin-top:14px;">
+      <strong>Pool view:</strong> Hardware is contributing shares. Fan and temperatures are in a healthy range, so share submission should stay stable.
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="section-title">Pool contribution <button class="info-btn" onclick="toggleExplainer('node-explain')">?</button></div>
+    <div id="node-explain" class="explainer">
+      This section uses a recent snapshot of the public Noderunners pool page for your Bitcoin address. It shows an estimate of the hashrate you are contributing and simple ideas that can raise output, along with the tradeoffs.
+    </div>
+    <div class="section-note">Recent Noderunners snapshot • Address: bc1qkglwnr7g0s570y527yc3ex4736hdl035gs6nhj</div>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-value">1.08–1.12 TH/s</div><div class="stat-label">Your contribution</div></div>
+      <div class="stat"><div class="stat-value">~0.0000001%</div><div class="stat-label">Of total network</div></div>
+      <div class="stat"><div class="stat-value">Active</div><div class="stat-label">Share status</div></div>
+    </div>
+    <div class="alert" style="margin-top:14px;">
+      <strong>Contribution view:</strong> This Bitaxe was actively submitting shares in the latest snapshot. At these settings it is a small but consistent lottery ticket.
+    </div>
+
+    <div class="section-title" style="margin-top:18px;font-size:15px;">Ways to boost output</div>
+    <div class="part">
+      <div class="part-icon">⚡</div>
+      <div class="part-info">
+        <div class="part-name">Slight overclock</div>
+        <div class="part-detail">Raise frequency a little (e.g. 525 → 550 MHz) for more hashrate. Watch temperatures and error rate.</div>
+        <span class="tag" style="background:#3a2a1a;color:#ffb347;">Higher wear</span>
+      </div>
+    </div>
+    <div class="part">
+      <div class="part-icon">🌀</div>
+      <div class="part-info">
+        <div class="part-name">Better fan or cooler</div>
+        <div class="part-detail">A higher-airflow 40mm fan or larger heatsink can lower temps and let you run higher frequency more safely.</div>
+        <span class="tag tag-diy">Easy swap</span>
+      </div>
+    </div>
+    <div class="part">
+      <div class="part-icon">🔌</div>
+      <div class="part-info">
+        <div class="part-name">Stable power</div>
+        <div class="part-detail">A quality 5V supply with headroom reduces voltage drop under load and can improve stability at higher speeds.</div>
+        <span class="tag tag-diy">Easy swap</span>
+      </div>
+    </div>
+    <div class="alert" style="margin-top:10px;background:#2a1a1a;border-color:#5a2a2a;">
+      <strong>Risk note:</strong> Overclocking raises heat and wear on the fan, thermal paste, and power parts. Changing stock settings or parts can affect warranty. Start with small changes and watch temperature and error rate.
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="section-title">Parts you can replace yourself</div>
+    <div class="section-note">No soldering needed. The percentage is our estimate of remaining useful life based on age, runtime, and typical wear. Higher is better — 100% means brand new. <button class="info-btn" onclick="toggleExplainer('life-explain')">?</button></div>
+    <div id="life-explain" class="explainer">
+      These are rough estimates, not lab measurements. We look at how long the part has been running, how hard it’s been worked (fan speed, temperature, overclock), and typical Bitaxe wear patterns. Use them as a guide for when to plan a simple swap — not as an exact countdown.
+    </div>
+
+    <div class="part">
+      <div class="part-icon">🌀</div>
+      <div class="part-info">
+        <div class="part-name">Cooling Fan</div>
+        <div class="part-detail">40mm 5V PWM • Currently 42.4% duty • ~21 months runtime</div>
+        <span class="tag tag-diy">Easy swap</span>
+        <div class="life-bar"><div class="life-fill" style="width: 82%; background: var(--good);"></div></div>
+      </div>
+      <div class="life-pct" style="color: var(--good);">82%<br><span style="font-size:11px;font-weight:400;color:var(--muted);">life left</span></div>
+    </div>
+
+    <div class="part">
+      <div class="part-icon">🔥</div>
+      <div class="part-info">
+        <div class="part-name">Thermal Paste / Pad</div>
+        <div class="part-detail">Between chip and heatsink • ~21 months old • Replace every 12–18 months recommended</div>
+        <span class="tag tag-diy">DIY</span>
+        <div class="life-bar"><div class="life-fill" style="width: 74%; background: var(--good);"></div></div>
+      </div>
+      <div class="life-pct" style="color: var(--good);">74%<br><span style="font-size:11px;font-weight:400;color:var(--muted);">life left</span></div>
+    </div>
+
+    <div class="part">
+      <div class="part-icon">🧊</div>
+      <div class="part-info">
+        <div class="part-name">Heatsink / Cooler</div>
+        <div class="part-detail">Stock aluminum or upgrade kit • Clipped or screwed on</div>
+        <span class="tag tag-diy">DIY</span>
+        <div class="life-bar"><div class="life-fill" style="width: 88%; background: var(--good);"></div></div>
+      </div>
+      <div class="life-pct" style="color: var(--good);">88%</div>
+    </div>
+
+    <div class="part">
+      <div class="part-icon">🔌</div>
+      <div class="part-info">
+        <div class="part-name">Power Supply (PSU)</div>
+        <div class="part-detail">5V barrel jack or USB-C • Replace if voltage drops or overheats</div>
+        <span class="tag tag-diy">Easy swap</span>
+        <div class="life-bar"><div class="life-fill" style="width: 91%; background: var(--good);"></div></div>
+      </div>
+      <div class="life-pct" style="color: var(--good);">91%</div>
+    </div>
+
+    <div class="part">
+      <div class="part-icon">📱</div>
+      <div class="part-info">
+        <div class="part-name">OLED Display</div>
+        <div class="part-detail">Small I2C screen • Reseat or replace if blank</div>
+        <span class="tag tag-diy">DIY</span>
+        <div class="life-bar"><div class="life-fill" style="width: 95%; background: var(--good);"></div></div>
+      </div>
+      <div class="life-pct" style="color: var(--good);">95%</div>
+    </div>
+
+    <div class="part">
+      <div class="part-icon">📦</div>
+      <div class="part-info">
+        <div class="part-name">Case / Stand / Enclosure</div>
+        <div class="part-detail">3D-printed or stock housing • Improves airflow</div>
+        <span class="tag tag-diy">Optional</span>
+      </div>
+      <div class="life-pct" style="color: var(--muted);">—</div>
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="section-title">Warranty status</div>
+    <div class="section-note">Purchased Dec 6, 2024 • Arrived Jan 14, 2025. Most Bitaxe sellers offer 3–12 months. At ~21 months old, the original warranty has almost certainly expired.</div>
+
+    <div class="part">
+      <div class="part-icon">📅</div>
+      <div class="part-info">
+        <div class="part-name">Estimated warranty remaining</div>
+        <div class="part-detail">Likely 0 months left. Check your specific CryptoCloaks / seller terms — many cover manufacturing defects only in the first 6–12 months.</div>
+        <span class="tag tag-warn">Probably expired</span>
+      </div>
+      <div class="life-pct" style="color: var(--warn);">0%</div>
+    </div>
+
+    <div class="part">
+      <div class="part-icon">💎</div>
+      <div class="part-info">
+        <div class="part-name">ASIC Chip (BM1366 / BM1370)</div>
+        <div class="part-detail">Main mining chip • Not user-replaceable without specialized tools</div>
+        <span class="tag tag-warranty">Warranty / send away</span>
+        <div class="life-bar"><div class="life-fill" style="width: 68%; background: var(--warn);"></div></div>
+      </div>
+      <div class="life-pct" style="color: var(--warn);">68%<br><span style="font-size:11px;font-weight:400;color:var(--muted);">life left</span></div>
+    </div>
+
+    <div class="part">
+      <div class="part-icon">⚡</div>
+      <div class="part-info">
+        <div class="part-name">Voltage Regulator / Board</div>
+        <div class="part-detail">Power delivery components • Contact seller if unstable</div>
+        <span class="tag tag-warranty">Warranty</span>
+        <div class="life-bar"><div class="life-fill" style="width: 85%; background: var(--good);"></div></div>
+      </div>
+      <div class="life-pct" style="color: var(--good);">85%</div>
+    </div>
+
+    <div class="part">
+      <div class="part-icon">📡</div>
+      <div class="part-info">
+        <div class="part-name">WiFi / Controller (ESP32)</div>
+        <div class="part-detail">Usually covered under full unit warranty</div>
+        <span class="tag tag-warranty">Warranty</span>
+      </div>
+      <div class="life-pct" style="color: var(--muted);">—</div>
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="section-title">Mod & warranty warnings</div>
+
+    <div class="warning-box">
+      <strong>These commonly void warranty:</strong><br>
+      • Aggressive overclocking (high voltage or sustained high temps)<br>
+      • Removing or replacing the heatsink without seller approval<br>
+      • Using non-stock fans, coolers, or power supplies<br>
+      • Any soldering, board modifications, or physical tampering<br>
+      • Running with inadequate cooling or blocked airflow
+    </div>
+
+    <div class="alert">
+      <strong>Heads up:</strong> Your current overclock is active. Many sellers treat overclocking as at-your-own-risk and may deny warranty claims if damage is linked to non-stock settings.
+    </div>
+
+    <div class="oc-note">
+      Current overclock is applying a <span>1.6× wear multiplier</span> versus stock on the chip and fan. Dropping to stock settings would slow aging and keep warranty options open.
+    </div>
+  </div>
+
+  <div class="report-card">
+    <div class="section-title">How this works</div>
+    <p style="font-size: 14px; color: var(--muted);">
+      Miner Carfax tracks runtime, temperature, fan duty, and overclock level to estimate remaining life on replaceable parts. Estimates are based on typical Bitaxe wear patterns and are not lab measurements. Use them to plan simple swaps (fan, paste, PSU) or decide when to contact the seller for warranty items. Always check your specific seller’s warranty terms before modifying.
+    </p>
+  </div>
+
+  <footer>
+    Miner Carfax MVP • Bitaxe Gamma 601 • Real data • For Crypto World’s Fair
+  </footer>
+</div>
+
+<script>
+function toggleExplainer(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  document.querySelectorAll('.explainer').forEach(e => {
+    if (e.id !== id) e.classList.remove('show');
+  });
+  el.classList.toggle('show');
+}
+</script>
+</body>
+</html>
